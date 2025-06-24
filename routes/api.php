@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,5 +41,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/category', [CategoryController::class, 'store']);
     Route::put('/category/{category}', [CategoryController::class, 'update']);
     Route::delete('/category/{category}', [CategoryController::class, 'destroy']);
+    
+    // Report
+    Route::get('/reports/summary', [ReportController::class, 'summary']);
+    Route::get('/reports/chart', [ReportController::class, 'chart']);
+    Route::post('/reports/export/pdf', [ReportController::class, 'exportPdf']);
+    Route::post('/reports/export/excel', [ReportController::class, 'exportExcel']);
 
 });

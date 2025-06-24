@@ -105,40 +105,4 @@ class TransactionController extends Controller
             'message' => 'Transaction deleted successfully'
         ]);
     }
-
-    public function summary(Request $request)
-    {
-        $userId = $request->user()->id;
-        
-        $totalIncome = Transaction::forUser($userId)
-            ->income()
-            ->sum('amount');
-            
-        $totalExpense = Transaction::forUser($userId)
-            ->expense()
-            ->sum('amount');
-
-        $balance = $totalIncome - $totalExpense;
-
-        // Monthly summary
-        $monthlyData = Transaction::forUser($userId)
-            ->selectRaw('
-                YEAR(transaction_date) as year,
-                MONTH(transaction_date) as month,
-                type,
-                SUM(amount) as total
-            ')
-            ->groupBy('year', 'month', 'type')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->get()
-            ->groupBy(['year', 'month']);
-
-        return response()->json([
-            'total_income' => $totalIncome,
-            'total_expense' => $totalExpense,
-            'balance' => $balance,
-            'monthly_data' => $monthlyData,
-        ]);
-    }
 }
