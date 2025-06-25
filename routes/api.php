@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TransactionController;
 use Illuminate\Http\Request;
@@ -48,4 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reports/export/pdf', [ReportController::class, 'exportPdf']);
     Route::post('/reports/export/excel', [ReportController::class, 'exportExcel']);
 
+    // Payment
+    Route::post('/payment/upgrade', [PaymentController::class, 'upgrade']);
+    Route::post('/payment/donate', [PaymentController::class, 'donate']);
+    Route::post('/payment/webhook', [PaymentController::class, 'webhook']);
 });

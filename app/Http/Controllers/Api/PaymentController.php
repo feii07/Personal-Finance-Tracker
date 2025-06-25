@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DonationPaymentRequest;
 use App\Http\Requests\StorePaymentRequest;
+use App\Http\Resources\PaymentResource;
 use App\Models\Donation;
 use App\Models\Payment;
+use App\Services\IPaymuService;
 use Auth;
-use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -153,6 +156,8 @@ class PaymentController extends Controller
             $referenceId = $request->input('reference_id');
             $status = $request->input('status');
             $transactionId = $request->input('transaction_id');
+
+            dd($this->ipaymuService->checkPaymentStatus(169815));
 
             $payment = Payment::where('payment_reference', $referenceId)->first();
 

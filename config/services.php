@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'ipaymu' => [
+        'va' => env('IPAYMU_VA'),
+        'secret' => env('IPAYMU_SECRET'),
+        'base_url' => env('IPAYMU_BASE_URL'),
+    ],
+
 ];

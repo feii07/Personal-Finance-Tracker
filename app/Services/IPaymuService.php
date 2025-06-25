@@ -20,32 +20,37 @@ class IPaymuService
 
     public function createPayment(array $data)
     {
+
         try {
             $body = [
                 'product' => $data['product'],
                 'qty' => $data['qty'],
                 'price' => $data['price'],
-                'description' => $data['description'] ?? '',
                 'returnUrl' => $data['returnUrl'],
                 'notifyUrl' => $data['notifyUrl'],
                 'cancelUrl' => $data['cancelUrl'],
                 'referenceId' => $data['referenceId'],
             ];
 
-            $jsonBody = json_encode($body);
-            $signature = $this->generateSignature('POST', 'payment', $jsonBody);
+            $jsonBody = json_encode($body, JSON_UNESCAPED_SLASHES);
+
+            $signature = $this->generateSignature('POST', '', $jsonBody);
+
+            $timestamp = now()->format('YmdHis');
 
             $response = Http::withHeaders([
+                'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
                 'va' => $this->va,
                 'signature' => $signature,
-                'timestamp' => time()
-            ])->post($this->baseUrl . '/payment', $body);
+                'timestamp' => $timestamp,
+            ])->withBody($jsonBody, 'application/json')
+            ->post($this->baseUrl . '/payment');
 
             if ($response->successful()) {
                 $responseData = $response->json();
                 Log::info('iPaymu payment created', $responseData);
-                
+
                 return [
                     'success' => true,
                     'data' => $responseData['Data'] ?? $responseData,
@@ -65,7 +70,7 @@ class IPaymuService
 
         } catch (\Exception $e) {
             Log::error('iPaymu service error: ' . $e->getMessage());
-            
+
             return [
                 'success' => false,
                 'message' => 'Service error: ' . $e->getMessage()
@@ -76,7 +81,8 @@ class IPaymuService
     public function checkPaymentStatus($transactionId)
     {
         try {
-            $signature = $this->generateSignature('POST', 'payment/status', '');
+            
+            $signature = $this->generateSignature('POST');
 
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
@@ -86,6 +92,7 @@ class IPaymuService
             ])->post($this->baseUrl . '/payment/status', [
                 'transactionId' => $transactionId
             ]);
+
 
             if ($response->successful()) {
                 return [
@@ -120,7 +127,7 @@ class IPaymuService
             unset($data['signature'], $data['timestamp']);
             
             $jsonBody = json_encode($data, JSON_UNESCAPED_SLASHES);
-            $expectedSignature = $this->generateWebhookSignature($jsonBody, $timestamp);
+            $expectedSignature = $this->generateSignature('POST', '', $jsonBody);
             
             return hash_equals($expectedSignature, $signature);
 
@@ -130,20 +137,16 @@ class IPaymuService
         }
     }
 
-    protected function generateSignature($method, $endpoint, $jsonBody)
+    protected function generateSignature($method, $endpoint = null, $jsonBody = null)
     {
-        $stringToSign = strtoupper($method) . ':' . $this->va . ':' . 
-                       hash('sha256', $jsonBody) . ':' . $this->secret;
-        
-        return hash_hmac('sha256', $stringToSign, $this->secret);
-    }
 
-    protected function generateWebhookSignature($jsonBody, $timestamp)
-    {
-        $stringToSign = 'POST:' . $this->va . ':' . 
-                       hash('sha256', $jsonBody) . ':' . $this->secret;
+        $requestBody = strtolower(hash('sha256', $jsonBody));
+
+        $stringToSign = $method . ':' . $this->va . ':' . $requestBody . ':' . $this->secret;
+
+        $signature = hash_hmac('sha256', $stringToSign, $this->secret);
         
-        return hash_hmac('sha256', $stringToSign, $this->secret);
+        return $signature;
     }
 
     public function getPaymentMethods()

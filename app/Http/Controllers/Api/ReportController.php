@@ -88,11 +88,11 @@ class ReportController extends Controller
     public function exportPdf(Request $request)
     {
         // Check if user is premium
-        if (!auth()->user()->is_premium) {
-            return response()->json([
-                'message' => 'Premium subscription required to export reports'
-            ], 403);
-        }
+        // if (!auth()->user()->is_premium) {
+        //     return response()->json([
+        //         'message' => 'Premium subscription required to export reports'
+        //     ], 403);
+        // }
 
         $request->validate([
             'start_date' => 'required|date',
@@ -137,7 +137,7 @@ class ReportController extends Controller
             'generated_at' => now()->format('Y-m-d H:i:s')
         ];
 
-        $pdf = Pdf::loadView('reports.transactions-pdf', $data);
+        $pdf = Pdf::loadView('reports.transaction-pdf', $data);
         
         $filename = 'transactions-report-' . $request->start_date . '-to-' . $request->end_date . '.pdf';
         

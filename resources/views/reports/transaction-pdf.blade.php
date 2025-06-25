@@ -132,3 +132,11 @@
                 <td>{{ $transaction->type }} </td>
                 <td>{{ $transaction->category->name }} </td>
                 <td>{{ $transaction->description }} </td>
+                <td>{{ $transaction->formatted_amount }} </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @else
+        <p> No Data </p>
+    @endif
