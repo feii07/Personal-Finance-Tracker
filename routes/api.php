@@ -52,5 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Payment
     Route::post('/payment/upgrade', [PaymentController::class, 'upgrade']);
     Route::post('/payment/donate', [PaymentController::class, 'donate']);
-    Route::post('/payment/webhook', [PaymentController::class, 'webhook']);
+    Route::post('/payment/check', [PaymentController::class, 'checkStatus']);
 });
+
+Route::post('/payment/webhook', [PaymentController::class, 'webhook']);

@@ -20,23 +20,26 @@ class IPaymuService
 
     public function createPayment(array $data)
     {
-
         try {
             $body = [
                 'product' => $data['product'],
                 'qty' => $data['qty'],
                 'price' => $data['price'],
-                'returnUrl' => $data['returnUrl'],
                 'notifyUrl' => $data['notifyUrl'],
-                'cancelUrl' => $data['cancelUrl'],
                 'referenceId' => $data['referenceId'],
             ];
 
             $jsonBody = json_encode($body, JSON_UNESCAPED_SLASHES);
+            $timestamp = date('YmdHis'); // Format: YYYYMMDDHHMMSS
 
-            $signature = $this->generateSignature('POST', '', $jsonBody);
+            // Generate signature untuk payment creation
+            $signature = $this->generateSignature('POST', 'payment', $jsonBody, $timestamp);
 
-            $timestamp = now()->format('YmdHis');
+            Log::info('iPaymu payment request', [
+                'body' => $jsonBody,
+                'signature' => $signature,
+                'timestamp' => $timestamp
+            ]);
 
             $response = Http::withHeaders([
                 'Accept' => 'application/json',
@@ -78,58 +81,35 @@ class IPaymuService
         }
     }
 
-    public function checkPaymentStatus($transactionId)
-    {
-        try {
-            
-            $signature = $this->generateSignature('POST');
-
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-                'va' => $this->va,
-                'signature' => $signature,
-                'timestamp' => time()
-            ])->post($this->baseUrl . '/payment/status', [
-                'transactionId' => $transactionId
-            ]);
-
-
-            if ($response->successful()) {
-                return [
-                    'success' => true,
-                    'data' => $response->json()
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Failed to check payment status'
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('iPaymu check status error: ' . $e->getMessage());
-            
-            return [
-                'success' => false,
-                'message' => 'Service error: ' . $e->getMessage()
-            ];
-        }
-    }
-
     public function verifyWebhook(array $data)
     {
         try {
-            // iPaymu webhook verification logic
-            $signature = $data['signature'] ?? '';
+            // Get signature dan timestamp dari data
+            $receivedSignature = $data['signature'] ?? '';
             $timestamp = $data['timestamp'] ?? '';
             
-            // Remove signature and timestamp from data for verification
-            unset($data['signature'], $data['timestamp']);
+            if (empty($receivedSignature) || empty($timestamp)) {
+                Log::warning('Missing signature or timestamp in webhook data');
+                return false;
+            }
             
-            $jsonBody = json_encode($data, JSON_UNESCAPED_SLASHES);
-            $expectedSignature = $this->generateSignature('POST', '', $jsonBody);
+            // Remove signature dan timestamp dari data untuk verification
+            $verificationData = $data;
+            unset($verificationData['signature'], $verificationData['timestamp']);
             
-            return hash_equals($expectedSignature, $signature);
+            $jsonBody = json_encode($verificationData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            
+            // Generate expected signature
+            $expectedSignature = $this->generateWebhookSignature($jsonBody, $timestamp);
+            
+            Log::info('Webhook signature verification', [
+                'received_signature' => $receivedSignature,
+                'expected_signature' => $expectedSignature,
+                'timestamp' => $timestamp,
+                'body' => $jsonBody
+            ]);
+            
+            return hash_equals($expectedSignature, $receivedSignature);
 
         } catch (\Exception $e) {
             Log::error('Webhook verification error: ' . $e->getMessage());
@@ -137,48 +117,36 @@ class IPaymuService
         }
     }
 
-    protected function generateSignature($method, $endpoint = null, $jsonBody = null)
+    protected function generateSignature($method, $endpoint, $jsonBody, $timestamp)
     {
-
-        $requestBody = strtolower(hash('sha256', $jsonBody));
-
-        $stringToSign = $method . ':' . $this->va . ':' . $requestBody . ':' . $this->secret;
-
+        // Hash request body
+        $hashedBody = strtolower(hash('sha256', $jsonBody));
+        
+        // String to sign: METHOD:VA:HASHED_BODY:SECRET
+        $stringToSign = strtoupper($method) . ':' . $this->va . ':' . $hashedBody . ':' . $this->secret;
+        
+        Log::info('Signature generation', [
+            'method' => $method,
+            'endpoint' => $endpoint,
+            'body' => $jsonBody,
+            'hashed_body' => $hashedBody,
+            'string_to_sign' => $stringToSign,
+            'timestamp' => $timestamp
+        ]);
+        
+        // Generate signature
         $signature = hash_hmac('sha256', $stringToSign, $this->secret);
         
         return $signature;
     }
 
-    public function getPaymentMethods()
+    protected function generateWebhookSignature($jsonBody, $timestamp)
     {
-        try {
-            $signature = $this->generateSignature('GET', 'payment-method', '');
-
-            $response = Http::withHeaders([
-                'va' => $this->va,
-                'signature' => $signature,
-                'timestamp' => time()
-            ])->get($this->baseUrl . '/payment-method');
-
-            if ($response->successful()) {
-                return [
-                    'success' => true,
-                    'data' => $response->json()
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Failed to get payment methods'
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Get payment methods error: ' . $e->getMessage());
-            
-            return [
-                'success' => false,
-                'message' => 'Service error: ' . $e->getMessage()
-            ];
-        }
+        // Untuk webhook, signature biasanya berbeda formatnya
+        // Sesuaikan dengan dokumentasi iPaymu yang terbaru
+        $hashedBody = strtolower(hash('sha256', $jsonBody));
+        $stringToSign = 'POST:' . $this->va . ':' . $hashedBody . ':' . $this->secret;
+        
+        return hash_hmac('sha256', $stringToSign, $this->secret);
     }
 }

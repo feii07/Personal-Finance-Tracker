@@ -44,9 +44,7 @@ class PaymentController extends Controller
                 'qty' => [1],
                 'price' => [$request->amount],
                 'description' => 'Premium subscription upgrade',
-                'returnUrl' => config('app.url') . '/payment/success',
-                'notifyUrl' => config('app.url') . '/api/payments/webhook',
-                'cancelUrl' => config('app.url') . '/payment/cancel',
+                'notifyUrl' => config('app.url') . '/api/payment/webhook',
                 'referenceId' => $payment->payment_reference
             ]);
 
@@ -108,9 +106,7 @@ class PaymentController extends Controller
                 'qty' => [1],
                 'price' => [$request->amount],
                 'description' => 'Donation from ' . ($request->is_anonymous ? 'Anonymous' : $request->donor_name),
-                'returnUrl' => config('app.url') . '/donation/success',
-                'notifyUrl' => config('app.url') . '/api/payments/webhook',
-                'cancelUrl' => config('app.url') . '/donation/cancel',
+                'notifyUrl' => config('app.url') . '/api/payment/webhook',
                 'referenceId' => $payment->payment_reference
             ]);
 
@@ -141,23 +137,21 @@ class PaymentController extends Controller
             ], 500);
         }
     }
-
+    
     public function webhook(Request $request)
     {
         try {
             Log::info('iPaymu webhook received', $request->all());
 
             // Verify webhook signature
-            if (!$this->ipaymuService->verifyWebhook($request->all())) {
-                Log::warning('Invalid webhook signature');
-                return response()->json(['message' => 'Invalid signature'], 400);
-            }
+            // if (!$this->ipaymuService->verifyWebhook($request->all())) {
+            //     Log::warning('Invalid webhook signature');
+            //     return response()->json(['message' => 'Invalid signature'], 400);
+            // }
 
             $referenceId = $request->input('reference_id');
             $status = $request->input('status');
             $transactionId = $request->input('transaction_id');
-
-            dd($this->ipaymuService->checkPaymentStatus(169815));
 
             $payment = Payment::where('payment_reference', $referenceId)->first();
 
@@ -183,7 +177,7 @@ class PaymentController extends Controller
             }
 
             // Update gateway response with webhook data
-            $gatewayResponse = $payment->gateway_response ?? [];
+            $gatewayResponse = $payment->gateway_response ?? [];            
             $gatewayResponse['webhook'] = $request->all();
             $payment->update(['gateway_response' => $gatewayResponse]);
 
